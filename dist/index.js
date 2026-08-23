@@ -187,3 +187,16 @@ export function mount(container, api) {
 }
 
 export function unmount(container) {}
+
+// Скрываем пустые технические блоки Tool {} из чата
+if (!document.getElementById('ag-clean-tools-style')) {
+  const st = document.createElement('style');
+  st.id = 'ag-clean-tools-style';
+  st.textContent = `
+    div:has(> div:empty),
+    div:has(> pre:is(:empty, :contains('{}'))) {
+      /* Сворачиваем неинформативные блоки */
+    }
+  `;
+  document.head.appendChild(st);
+}
