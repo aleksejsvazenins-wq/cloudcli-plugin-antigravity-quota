@@ -3,6 +3,11 @@
   "displayName": "Antigravity Quota",
   "version": "1.0.0",
   "description": "Live Google Antigravity quota and limit tracking",
-  "author": "Custom",
-  "icon": "Gauge"
+  "author": "aleksejsvazenins-wq",
+  "icon": "Gauge",
+  "type": "module",
+  "slot": "tab",
+  "entry": "dist/index.js",
+  "server": "dist/server.js",
+  "permissions": []
 }
