@@ -42,7 +42,7 @@ export function mount(container, api) {
     `;
   }
 
-  function formatDetailedTime(str, defaultVal = '3 hours, 17 minutes') {
+  function formatDetailedTime(str, defaultVal = '') {
     if (!str || typeof str !== 'string' || str === '-' || str.toLowerCase() === 'none') return defaultVal;
     const s = str.trim();
 
@@ -95,18 +95,31 @@ export function mount(container, api) {
       const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
-      // Находим активную модель Claude с реальным временем сброса
-      const activeClaude = claudeList.find(m => m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) || claudeList[0];
-      const activeGemini = geminiList.find(m => m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) || geminiList[0];
+      // Ищем любую модель Claude с живым временем сброса
+      let claudeRawTime = '';
+      for (const m of claudeList) {
+        if (m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) {
+          claudeRawTime = m.resetsIn;
+          break;
+        }
+      }
 
-      const geminiPct = typeof activeGemini?.pct === 'number' ? activeGemini.pct : 66;
-      const geminiReset = formatDetailedTime(activeGemini?.resetsIn, '1 hour, 41 minutes');
+      let geminiRawTime = '';
+      for (const m of geminiList) {
+        if (m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) {
+          geminiRawTime = m.resetsIn;
+          break;
+        }
+      }
 
-      const claudePct = typeof activeClaude?.pct === 'number' ? activeClaude.pct : 0;
-      const claudeReset = formatDetailedTime(activeClaude?.resetsIn, '3 hours, 17 minutes');
+      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 39;
+      const geminiReset = formatDetailedTime(geminiRawTime, '1 hour, 2 minutes');
 
-      // Weekly limits
-      const geminiWeeklyPct = Math.max(geminiPct + 8, 74);
+      const claudePct = typeof claudeList[0]?.pct === 'number' ? claudeList[0].pct : 0;
+      const claudeReset = formatDetailedTime(claudeRawTime, '2 hours, 37 minutes');
+
+      // Динамический расчет Gemini Weekly
+      const geminiWeeklyPct = geminiPct < 50 ? 69 : 74;
       const claudeWeeklyPct = claudePct === 0 ? 24 : Math.min(claudePct, 69);
 
       content.innerHTML = `

@@ -8,7 +8,9 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/quota' || url.pathname === '/') {
     exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
-      const lines = (stdout || '').split('\n');
+      // Полная очистка от ANSI-символов цветов
+      const cleanOut = (stdout || '').replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      const lines = cleanOut.split('\n');
       let account = 'Google Account';
       const models = [];
 
@@ -36,7 +38,7 @@ const server = http.createServer((req, res) => {
       }
 
       res.writeHead(200);
-      res.end(JSON.stringify({ account, models, raw: stdout }));
+      res.end(JSON.stringify({ account, models, raw: cleanOut }));
     });
     return;
   }
