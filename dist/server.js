@@ -20,17 +20,21 @@ const server = http.createServer((req, res) => {
         if (line.includes('%')) {
           const parts = line.split('│').map(s => s.trim()).filter(Boolean);
           if (parts.length >= 3) {
+            const rawPct = parts[1];
+            const numMatch = rawPct.match(/\d+/);
+            const pct = numMatch ? parseInt(numMatch[0], 10) : 0;
             models.push({
-              name: String(parts[0] || 'Model').trim(),
-              remaining: String(parts[1] || '100%').trim(),
-              resetsIn: String(parts[2] || '5h').trim()
+              name: parts[0],
+              remaining: rawPct,
+              pct: pct,
+              resetsIn: parts[2]
             });
           }
         }
       }
 
       res.writeHead(200);
-      res.end(JSON.stringify({ account, models }));
+      res.end(JSON.stringify({ account, models, raw: stdout }));
     });
     return;
   }

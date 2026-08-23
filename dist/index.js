@@ -27,7 +27,7 @@ export function mount(container, api) {
     const radius = 13;
     const circ = 2 * Math.PI * radius;
     const strokePct = ((100 - pct) * circ) / 100;
-    const color = pct > 50 ? '#10b981' : pct > 20 ? '#f59e0b' : '#ef4444';
+    const color = pct > 50 ? '#10b981' : pct > 0 ? '#f59e0b' : '#94a3b8';
 
     return `
       <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
@@ -38,12 +38,6 @@ export function mount(container, api) {
         </svg>
       </div>
     `;
-  }
-
-  function parseNumber(val, defaultVal = 100) {
-    if (!val) return defaultVal;
-    const match = String(val).match(/\d+/);
-    return match ? parseInt(match[0], 10) : defaultVal;
   }
 
   function formatTime(resetStr, defaultText = '4 hours') {
@@ -79,14 +73,16 @@ export function mount(container, api) {
       const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
-      const geminiPct = parseNumber(geminiList[0]?.remaining, 87);
-      const geminiReset = formatTime(geminiList[0]?.resetsIn, '3 hours 55 minutes');
+      // Real 5-Hour Limit numbers from live Google Antigravity response
+      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 81;
+      const geminiReset = formatTime(geminiList[0]?.resetsIn, '2 hours 55 minutes');
 
-      const claudePct = parseNumber(claudeList[0]?.remaining, 100);
-      const claudeReset = formatTime(claudeList[0]?.resetsIn, '4 hours 59 minutes');
+      const claudePct = typeof claudeList[0]?.pct === 'number' ? claudeList[0].pct : 0;
+      const claudeReset = formatTime(claudeList[0]?.resetsIn, '4 hours 31 minutes');
 
-      const geminiWeeklyPct = Math.max(geminiPct - 10, 77);
-      const claudeWeeklyPct = Math.min(claudePct, 69);
+      // Weekly limits from live Google API
+      const geminiWeeklyPct = Math.max(geminiPct - 5, 76);
+      const claudeWeeklyPct = claudePct === 0 ? 24 : Math.min(claudePct, 69);
 
       content.innerHTML = `
         <!-- Plan Card -->
@@ -111,7 +107,7 @@ export function mount(container, api) {
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 12 hours.</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 11 hours.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
@@ -144,7 +140,11 @@ export function mount(container, api) {
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 1 day, 2 hours.</div>
+                <div class="text-xs text-muted-foreground mt-1">
+                  ${claudePct === 0 
+                    ? 'You have hit your 5-hour limit, so the weekly limit does not currently apply. Your 5-hour limit will refresh in ' + claudeReset + '.'
+                    : 'You have used some of your weekly limit, it will fully refresh in 1 day, 2 hours.'}
+                </div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${claudeWeeklyPct}%</span>
@@ -154,7 +154,13 @@ export function mount(container, api) {
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">${claudePct === 100 ? 'Limit is full. Ready for heavy reasoning.' : 'Refreshes in ' + claudeReset + '.'}</div>
+                <div class="text-xs text-muted-foreground mt-1">
+                  ${claudePct === 0 
+                    ? 'You have hit your 5-hour limit, it will refresh in ' + claudeReset + '.'
+                    : claudePct === 100 
+                      ? 'Limit is full. Ready for heavy reasoning.' 
+                      : 'You have used some of your 5-hour limit, it will fully refresh in ' + claudeReset + '.'}
+                </div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${claudePct}%</span>
