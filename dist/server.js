@@ -1,34 +1,44 @@
 import http from 'node:http';
 import { exec } from 'node:child_process';
 
-const PORT = parseInt(process.env.PORT || '0', 10);
-
 const server = http.createServer((req, res) => {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-  exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
-    const lines = (stdout || '').split('\n');
-    let account = 'darewangog@gmail.com';
-    const models = [];
+  if (url.pathname === '/quota' || url.pathname === '/') {
+    exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
+      const lines = (stdout || '').split('\n');
+      let account = 'darewangog@gmail.com';
+      const models = [];
 
-    for (const line of lines) {
-      if (line.includes('@')) {
-        const match = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        if (match) account = match[1];
-      }
-      if (line.includes('%')) {
-        const parts = line.split('│').map(s => s.trim()).filter(Boolean);
-        if (parts.length >= 3) {
-          models.push({ name: parts[0], remaining: parts[1], resetsIn: parts[2] });
+      for (const line of lines) {
+        if (line.includes('@')) {
+          const match = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          if (match) account = match[1];
+        }
+        if (line.includes('%')) {
+          const parts = line.split('│').map(s => s.trim()).filter(Boolean);
+          if (parts.length >= 3) {
+            models.push({ name: parts[0], remaining: parts[1], resetsIn: parts[2] });
+          }
         }
       }
-    }
 
-    res.end(JSON.stringify({ account, models, raw: stdout }));
-  });
+      res.writeHead(200);
+      res.end(JSON.stringify({ account, models, raw: stdout }));
+    });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-if (PORT) {
-  server.listen(PORT, '127.0.0.1');
-}
+// Слушаем порт 0 (любой свободный) и отправляем обязательный сигнал готовности для CloudCLI
+server.listen(0, '127.0.0.1', () => {
+  const addr = server.address();
+  if (addr && typeof addr !== 'string') {
+    console.log(JSON.stringify({ ready: true, port: addr.port }));
+  }
+});
