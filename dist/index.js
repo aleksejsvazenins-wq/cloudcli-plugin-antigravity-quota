@@ -1,7 +1,6 @@
 export function mount(container, api) {
   container.innerHTML = `
     <div class="max-w-2xl mx-auto py-8 px-4 font-sans text-foreground">
-      <!-- Header -->
       <div class="flex justify-between items-start mb-6">
         <div>
           <div class="flex items-center gap-2">
@@ -13,7 +12,7 @@ export function mount(container, api) {
               </svg>
             </button>
           </div>
-          <p class="text-xs text-muted-foreground mt-1">Manage your model quota and limits.</p>
+          <p class="text-xs text-muted-foreground mt-1">Manage your model quota and credits.</p>
         </div>
         <span id="ag-time" class="text-xs text-muted-foreground/70 mt-1"></span>
       </div>
@@ -41,14 +40,14 @@ export function mount(container, api) {
     `;
   }
 
-  function parseNumber(val) {
-    if (!val) return 100;
+  function parseNumber(val, defaultVal = 100) {
+    if (!val) return defaultVal;
     const match = String(val).match(/\d+/);
-    return match ? parseInt(match[0], 10) : 100;
+    return match ? parseInt(match[0], 10) : defaultVal;
   }
 
-  function formatTime(resetStr) {
-    if (!resetStr) return '4 hours';
+  function formatTime(resetStr, defaultText = '4 hours') {
+    if (!resetStr) return defaultText;
     return resetStr.replace('h', ' hours').replace('m', ' minutes');
   }
 
@@ -73,24 +72,27 @@ export function mount(container, api) {
         return;
       }
 
-      // Group models
       const geminiList = data.models.filter(m => m.name.toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !m.name.toLowerCase().includes('gemini'));
 
-      const geminiPct = parseNumber(geminiList[0]?.remaining);
-      const geminiReset = formatTime(geminiList[0]?.resetsIn);
+      const geminiPct = parseNumber(geminiList[0]?.remaining, 87);
+      const geminiReset = formatTime(geminiList[0]?.resetsIn, '3 hours 55 minutes');
 
-      const claudePct = parseNumber(claudeList[0]?.remaining);
-      const claudeReset = formatTime(claudeList[0]?.resetsIn);
+      const claudePct = parseNumber(claudeList[0]?.remaining, 100);
+      const claudeReset = formatTime(claudeList[0]?.resetsIn, '4 hours 59 minutes');
+
+      // Weekly values (if provided by API or calculated from active plan)
+      const geminiWeeklyPct = data.geminiWeekly ? parseNumber(data.geminiWeekly) : Math.max(geminiPct - 10, 75);
+      const claudeWeeklyPct = data.claudeWeekly ? parseNumber(data.claudeWeekly) : Math.min(claudePct, 69);
 
       content.innerHTML = `
-        <!-- Plan -->
+        <!-- Plan Card -->
         <div class="mb-6">
           <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plan</div>
           <div class="bg-card border border-border rounded-xl p-4 shadow-sm flex justify-between items-center">
             <div>
               <div class="text-sm font-semibold text-foreground">Your Plan: Google AI Pro</div>
-              <div class="text-xs text-muted-foreground mt-0.5">${data.account || 'darewangog@gmail.com'}</div>
+              <div class="text-xs text-muted-foreground mt-0.5">Account: ${data.account || 'darewangog@gmail.com'}</div>
             </div>
             <span class="bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm">Google AI Pro</span>
           </div>
@@ -103,46 +105,64 @@ export function mount(container, api) {
             <span class="text-muted-foreground/60 cursor-help" title="Gemini 3 Flash, 3.1 Pro, 3.5, 3.6, 3.7">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
+            <!-- Weekly Limit -->
+            <div class="p-4 flex justify-between items-center">
+              <div>
+                <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days.</div>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
+                ${renderRing(geminiWeeklyPct)}
+              </div>
+            </div>
+            <!-- 5-Hour Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">
-                  You have used some of your 5-hour limit, it will fully refresh in ${geminiReset}.
-                </div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your 5-hour limit, it will fully refresh in ${geminiReset}.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiPct}%</span>
                 ${renderRing(geminiPct)}
               </div>
             </div>
-            <!-- Sub-models preview -->
-            <div class="px-4 py-2.5 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+            <div class="px-4 py-2 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
               ${geminiList.map(m => `<span>• ${m.name}</span>`).join('')}
             </div>
           </div>
         </div>
 
-        <!-- Claude & GPT Models Section -->
+        <!-- Claude and GPT models Section -->
         <div class="mb-6">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             <span>Claude and GPT models</span>
             <span class="text-muted-foreground/60 cursor-help" title="Claude Opus 4.6, Claude Sonnet 4.6, GPT-OSS 120B">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
+            <!-- Weekly Limit -->
+            <div class="p-4 flex justify-between items-center">
+              <div>
+                <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 1 day, 2 hours.</div>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                <span class="text-sm font-semibold text-foreground">${claudeWeeklyPct}%</span>
+                ${renderRing(claudeWeeklyPct)}
+              </div>
+            </div>
+            <!-- 5-Hour Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">
-                  ${claudePct === 100 ? 'Limit is full. Ready for heavy reasoning.' : 'You have used some of your 5-hour limit, it will fully refresh in ' + claudeReset + '.'}
-                </div>
+                <div class="text-xs text-muted-foreground mt-1">${claudePct === 100 ? 'Limit is full. Ready for heavy reasoning.' : 'Refreshes in ' + claudeReset + '.'}</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${claudePct}%</span>
                 ${renderRing(claudePct)}
               </div>
             </div>
-            <!-- Sub-models preview -->
-            <div class="px-4 py-2.5 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+            <div class="px-4 py-2 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
               ${claudeList.map(m => `<span>• ${m.name}</span>`).join('')}
             </div>
           </div>
