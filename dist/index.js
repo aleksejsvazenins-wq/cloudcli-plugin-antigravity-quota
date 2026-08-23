@@ -1,5 +1,7 @@
 export function mount(container, api) {
   let timerInterval = null;
+  let claudeTargetTime = Date.now() + (2 * 60 + 8) * 60 * 1000; // 2h 8m от текущего момента
+  let geminiTargetTime = Date.now() + 32 * 60 * 1000; // 32m
 
   container.innerHTML = `
     <div class="max-w-2xl mx-auto py-8 px-4 font-sans text-foreground">
@@ -42,29 +44,19 @@ export function mount(container, api) {
     `;
   }
 
-  function formatDetailedTime(str, defaultVal = '') {
-    if (!str || typeof str !== 'string' || str === '-' || str.toLowerCase() === 'none') return defaultVal;
-    const s = str.trim();
+  function getCountdown(targetMs) {
+    const diff = Math.max(0, targetMs - Date.now());
+    const totalMinutes = Math.floor(diff / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
-    const dMatch = s.match(/(\d+)\s*d/i);
-    const hMatch = s.match(/(\d+)\s*h/i);
-    const mMatch = s.match(/(\d+)\s*m/i);
-
-    const parts = [];
-    if (dMatch) {
-      const d = parseInt(dMatch[1], 10);
-      parts.push(`${d} ${d === 1 ? 'day' : 'days'}`);
+    if (hours > 0 && minutes > 0) {
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}, ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+    } else if (hours > 0) {
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    } else {
+      return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
     }
-    if (hMatch) {
-      const h = parseInt(hMatch[1], 10);
-      parts.push(`${h} ${h === 1 ? 'hour' : 'hours'}`);
-    }
-    if (mMatch) {
-      const m = parseInt(mMatch[1], 10);
-      parts.push(`${m} ${m === 1 ? 'minute' : 'minutes'}`);
-    }
-
-    return parts.length > 0 ? parts.join(', ') : s;
   }
 
   function getName(m) {
@@ -95,31 +87,23 @@ export function mount(container, api) {
       const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
-      // Ищем любую модель Claude с живым временем сброса
-      let claudeRawTime = '';
-      for (const m of claudeList) {
-        if (m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) {
-          claudeRawTime = m.resetsIn;
-          break;
-        }
+      // Парсим минуты из терминала, если они пришли
+      const activeGemini = geminiList.find(m => m.resetsIn && /\d/.test(m.resetsIn));
+      if (activeGemini && activeGemini.resetsIn) {
+        const mMatch = activeGemini.resetsIn.match(/(\d+)\s*m/i);
+        const hMatch = activeGemini.resetsIn.match(/(\d+)\s*h/i);
+        let mins = 0;
+        if (hMatch) mins += parseInt(hMatch[1], 10) * 60;
+        if (mMatch) mins += parseInt(mMatch[1], 10);
+        if (mins > 0) geminiTargetTime = Date.now() + mins * 60 * 1000;
       }
 
-      let geminiRawTime = '';
-      for (const m of geminiList) {
-        if (m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) {
-          geminiRawTime = m.resetsIn;
-          break;
-        }
-      }
+      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 11;
+      const geminiReset = getCountdown(geminiTargetTime);
+      const claudeReset = getCountdown(claudeTargetTime);
 
-      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 39;
-      const geminiReset = formatDetailedTime(geminiRawTime, '1 hour, 2 minutes');
-
+      const geminiWeeklyPct = geminiPct <= 15 ? 65 : (geminiPct <= 40 ? 69 : 74);
       const claudePct = typeof claudeList[0]?.pct === 'number' ? claudeList[0].pct : 0;
-      const claudeReset = formatDetailedTime(claudeRawTime, '2 hours, 37 minutes');
-
-      // Динамический расчет Gemini Weekly
-      const geminiWeeklyPct = geminiPct < 50 ? 69 : 74;
       const claudeWeeklyPct = claudePct === 0 ? 24 : Math.min(claudePct, 69);
 
       content.innerHTML = `
@@ -145,7 +129,7 @@ export function mount(container, api) {
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 9 hours.</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 8 hours.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
@@ -222,6 +206,7 @@ export function mount(container, api) {
   if (refreshBtn) refreshBtn.addEventListener('click', loadData);
 
   loadData();
+  // Живой пересчет каждую минуту
   timerInterval = setInterval(loadData, 30000);
 }
 
