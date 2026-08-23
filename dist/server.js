@@ -9,7 +9,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/quota' || url.pathname === '/') {
     exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
       const lines = (stdout || '').split('\n');
-      let account = 'darewangog@gmail.com';
+      let account = 'Google Account';
       const models = [];
 
       for (const line of lines) {

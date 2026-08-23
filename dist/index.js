@@ -91,7 +91,7 @@ export function mount(container, api) {
           <div class="bg-card border border-border rounded-xl p-4 shadow-sm flex justify-between items-center">
             <div>
               <div class="text-sm font-semibold text-foreground">Your Plan: Google AI Pro</div>
-              <div class="text-xs text-muted-foreground mt-0.5">Account: ${data.account || 'darewangog@gmail.com'}</div>
+              <div class="text-xs text-muted-foreground mt-0.5">Account: ${data.account || 'Google Account'}</div>
             </div>
             <span class="bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm">Google AI Pro</span>
           </div>
