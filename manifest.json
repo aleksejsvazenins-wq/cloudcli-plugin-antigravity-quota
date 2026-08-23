@@ -1,10 +1,10 @@
 {
   "name": "antigravity-quota",
   "displayName": "Antigravity Quota",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Live Google Antigravity quota and limit tracking",
   "author": "aleksejsvazenins-wq",
-  "icon": "BarChart3",
+  "icon": "icon.svg",
   "type": "module",
   "slot": "tab",
   "entry": "dist/index.js",
