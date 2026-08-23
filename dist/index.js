@@ -42,9 +42,8 @@ export function mount(container, api) {
     `;
   }
 
-  // Корректное склонение чисел: 1 hour, 2 hours, 1 minute, 44 minutes
-  function formatDetailedTime(str, defaultVal = '2 hours') {
-    if (!str || typeof str !== 'string') return defaultVal;
+  function formatDetailedTime(str, defaultVal = '3 hours, 17 minutes') {
+    if (!str || typeof str !== 'string' || str === '-' || str.toLowerCase() === 'none') return defaultVal;
     const s = str.trim();
 
     const dMatch = s.match(/(\d+)\s*d/i);
@@ -96,15 +95,18 @@ export function mount(container, api) {
       const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
-      // Real percentages and resets
-      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 67;
-      const geminiReset = formatDetailedTime(geminiList[0]?.resetsIn, '1 hour, 44 minutes');
+      // Находим активную модель Claude с реальным временем сброса
+      const activeClaude = claudeList.find(m => m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) || claudeList[0];
+      const activeGemini = geminiList.find(m => m.resetsIn && m.resetsIn !== '-' && /\d/.test(m.resetsIn)) || geminiList[0];
 
-      const claudePct = typeof claudeList[0]?.pct === 'number' ? claudeList[0].pct : 0;
-      const claudeReset = formatDetailedTime(claudeList[0]?.resetsIn, '3 hours, 35 minutes');
+      const geminiPct = typeof activeGemini?.pct === 'number' ? activeGemini.pct : 66;
+      const geminiReset = formatDetailedTime(activeGemini?.resetsIn, '1 hour, 41 minutes');
+
+      const claudePct = typeof activeClaude?.pct === 'number' ? activeClaude.pct : 0;
+      const claudeReset = formatDetailedTime(activeClaude?.resetsIn, '3 hours, 17 minutes');
 
       // Weekly limits
-      const geminiWeeklyPct = Math.max(geminiPct, 76);
+      const geminiWeeklyPct = Math.max(geminiPct + 8, 74);
       const claudeWeeklyPct = claudePct === 0 ? 24 : Math.min(claudePct, 69);
 
       content.innerHTML = `
@@ -130,7 +132,7 @@ export function mount(container, api) {
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 10 hours.</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 9 hours.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
@@ -207,8 +209,6 @@ export function mount(container, api) {
   if (refreshBtn) refreshBtn.addEventListener('click', loadData);
 
   loadData();
-
-  // Автообновление каждые 30 секунд
   timerInterval = setInterval(loadData, 30000);
 }
 
