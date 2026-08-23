@@ -1,10 +1,10 @@
 {
   "name": "antigravity-quota",
-  "displayName": "⚡ Antigravity Quota",
-  "version": "1.0.2",
+  "displayName": "Antigravity Quota",
+  "version": "1.0.3",
   "description": "Live Google Antigravity quota and limit tracking",
   "author": "aleksejsvazenins-wq",
-  "icon": "Zap",
+  "icon": "Activity",
   "type": "module",
   "slot": "tab",
   "entry": "dist/index.js",
