@@ -7,42 +7,30 @@ const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   if (url.pathname === '/quota' || url.pathname === '/') {
-    exec('npx antigravity-usage --json', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
-      let result = null;
-      try {
-        result = JSON.parse(stdout);
-      } catch (e) {
-        // fallback regex parsing
-      }
+    exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err, stdout) => {
+      const lines = (stdout || '').split('\n');
+      let account = 'darewangog@gmail.com';
+      const models = [];
 
-      if (result && result.models) {
-        res.writeHead(200);
-        res.end(JSON.stringify(result));
-        return;
-      }
-
-      // Если --json не дал объект, парсим текст таблицы
-      exec('npx antigravity-usage', { encoding: 'utf-8', env: process.env }, (err2, stdout2) => {
-        const lines = (stdout2 || '').split('\n');
-        let account = 'darewangog@gmail.com';
-        const models = [];
-
-        for (const line of lines) {
-          if (line.includes('@')) {
-            const match = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-            if (match) account = match[1];
-          }
-          if (line.includes('%')) {
-            const parts = line.split('│').map(s => s.trim()).filter(Boolean);
-            if (parts.length >= 3) {
-              models.push({ name: parts[0], remaining: parts[1], resetsIn: parts[2] });
-            }
+      for (const line of lines) {
+        if (line.includes('@')) {
+          const match = line.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          if (match) account = match[1];
+        }
+        if (line.includes('%')) {
+          const parts = line.split('│').map(s => s.trim()).filter(Boolean);
+          if (parts.length >= 3) {
+            models.push({
+              name: String(parts[0] || 'Model').trim(),
+              remaining: String(parts[1] || '100%').trim(),
+              resetsIn: String(parts[2] || '5h').trim()
+            });
           }
         }
+      }
 
-        res.writeHead(200);
-        res.end(JSON.stringify({ account, models }));
-      });
+      res.writeHead(200);
+      res.end(JSON.stringify({ account, models }));
     });
     return;
   }

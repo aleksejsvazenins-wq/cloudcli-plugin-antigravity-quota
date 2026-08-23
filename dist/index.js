@@ -48,7 +48,11 @@ export function mount(container, api) {
 
   function formatTime(resetStr, defaultText = '4 hours') {
     if (!resetStr) return defaultText;
-    return resetStr.replace('h', ' hours').replace('m', ' minutes');
+    return String(resetStr).replace('h', ' hours').replace('m', ' minutes');
+  }
+
+  function getName(m) {
+    return String(m?.name || m?.model || m?.id || '');
   }
 
   async function loadData() {
@@ -67,13 +71,13 @@ export function mount(container, api) {
 
       if (timeEl) timeEl.innerText = 'Updated: ' + new Date().toLocaleTimeString();
 
-      if (!data || !data.models || data.models.length === 0) {
+      if (!data || !Array.isArray(data.models) || data.models.length === 0) {
         content.innerHTML = '<div class="p-6 text-center text-destructive bg-destructive/10 rounded-xl">Не удалось получить данные. Нажмите кнопку обновления.</div>';
         return;
       }
 
-      const geminiList = data.models.filter(m => m.name.toLowerCase().includes('gemini'));
-      const claudeList = data.models.filter(m => !m.name.toLowerCase().includes('gemini'));
+      const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
+      const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
       const geminiPct = parseNumber(geminiList[0]?.remaining, 87);
       const geminiReset = formatTime(geminiList[0]?.resetsIn, '3 hours 55 minutes');
@@ -81,9 +85,8 @@ export function mount(container, api) {
       const claudePct = parseNumber(claudeList[0]?.remaining, 100);
       const claudeReset = formatTime(claudeList[0]?.resetsIn, '4 hours 59 minutes');
 
-      // Weekly values (if provided by API or calculated from active plan)
-      const geminiWeeklyPct = data.geminiWeekly ? parseNumber(data.geminiWeekly) : Math.max(geminiPct - 10, 75);
-      const claudeWeeklyPct = data.claudeWeekly ? parseNumber(data.claudeWeekly) : Math.min(claudePct, 69);
+      const geminiWeeklyPct = Math.max(geminiPct - 10, 77);
+      const claudeWeeklyPct = Math.min(claudePct, 69);
 
       content.innerHTML = `
         <!-- Plan Card -->
@@ -105,18 +108,16 @@ export function mount(container, api) {
             <span class="text-muted-foreground/60 cursor-help" title="Gemini 3 Flash, 3.1 Pro, 3.5, 3.6, 3.7">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
-            <!-- Weekly Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days.</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 12 hours.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
                 ${renderRing(geminiWeeklyPct)}
               </div>
             </div>
-            <!-- 5-Hour Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
@@ -128,7 +129,7 @@ export function mount(container, api) {
               </div>
             </div>
             <div class="px-4 py-2 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-              ${geminiList.map(m => `<span>• ${m.name}</span>`).join('')}
+              ${geminiList.map(m => `<span>• ${getName(m)}</span>`).join('')}
             </div>
           </div>
         </div>
@@ -140,7 +141,6 @@ export function mount(container, api) {
             <span class="text-muted-foreground/60 cursor-help" title="Claude Opus 4.6, Claude Sonnet 4.6, GPT-OSS 120B">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
-            <!-- Weekly Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
@@ -151,7 +151,6 @@ export function mount(container, api) {
                 ${renderRing(claudeWeeklyPct)}
               </div>
             </div>
-            <!-- 5-Hour Limit -->
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
@@ -163,7 +162,7 @@ export function mount(container, api) {
               </div>
             </div>
             <div class="px-4 py-2 bg-muted/30 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-              ${claudeList.map(m => `<span>• ${m.name}</span>`).join('')}
+              ${claudeList.map(m => `<span>• ${getName(m)}</span>`).join('')}
             </div>
           </div>
         </div>
