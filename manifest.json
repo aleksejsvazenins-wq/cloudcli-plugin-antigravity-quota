@@ -1,0 +1,8 @@
+{
+  "name": "antigravity-quota",
+  "displayName": "Antigravity Quota",
+  "version": "1.0.0",
+  "description": "Live Google Antigravity quota and limit tracking",
+  "author": "Custom",
+  "icon": "Gauge"
+}
