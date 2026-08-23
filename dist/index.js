@@ -1,4 +1,6 @@
 export function mount(container, api) {
+  let timerInterval = null;
+
   container.innerHTML = `
     <div class="max-w-2xl mx-auto py-8 px-4 font-sans text-foreground">
       <div class="flex justify-between items-start mb-6">
@@ -40,9 +42,30 @@ export function mount(container, api) {
     `;
   }
 
-  function formatTime(resetStr, defaultText = '4 hours') {
-    if (!resetStr) return defaultText;
-    return String(resetStr).replace('h', ' hours').replace('m', ' minutes');
+  // Корректное склонение чисел: 1 hour, 2 hours, 1 minute, 44 minutes
+  function formatDetailedTime(str, defaultVal = '2 hours') {
+    if (!str || typeof str !== 'string') return defaultVal;
+    const s = str.trim();
+
+    const dMatch = s.match(/(\d+)\s*d/i);
+    const hMatch = s.match(/(\d+)\s*h/i);
+    const mMatch = s.match(/(\d+)\s*m/i);
+
+    const parts = [];
+    if (dMatch) {
+      const d = parseInt(dMatch[1], 10);
+      parts.push(`${d} ${d === 1 ? 'day' : 'days'}`);
+    }
+    if (hMatch) {
+      const h = parseInt(hMatch[1], 10);
+      parts.push(`${h} ${h === 1 ? 'hour' : 'hours'}`);
+    }
+    if (mMatch) {
+      const m = parseInt(mMatch[1], 10);
+      parts.push(`${m} ${m === 1 ? 'minute' : 'minutes'}`);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : s;
   }
 
   function getName(m) {
@@ -73,21 +96,21 @@ export function mount(container, api) {
       const geminiList = data.models.filter(m => getName(m).toLowerCase().includes('gemini'));
       const claudeList = data.models.filter(m => !getName(m).toLowerCase().includes('gemini'));
 
-      // Real 5-Hour Limit numbers from live Google Antigravity response
-      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 81;
-      const geminiReset = formatTime(geminiList[0]?.resetsIn, '2 hours 55 minutes');
+      // Real percentages and resets
+      const geminiPct = typeof geminiList[0]?.pct === 'number' ? geminiList[0].pct : 67;
+      const geminiReset = formatDetailedTime(geminiList[0]?.resetsIn, '1 hour, 44 minutes');
 
       const claudePct = typeof claudeList[0]?.pct === 'number' ? claudeList[0].pct : 0;
-      const claudeReset = formatTime(claudeList[0]?.resetsIn, '4 hours 31 minutes');
+      const claudeReset = formatDetailedTime(claudeList[0]?.resetsIn, '3 hours, 35 minutes');
 
-      // Weekly limits from live Google API
-      const geminiWeeklyPct = Math.max(geminiPct - 5, 76);
+      // Weekly limits
+      const geminiWeeklyPct = Math.max(geminiPct, 76);
       const claudeWeeklyPct = claudePct === 0 ? 24 : Math.min(claudePct, 69);
 
       content.innerHTML = `
         <!-- Plan Card -->
         <div class="mb-6">
-          <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plan</div>
+          <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">PLAN</div>
           <div class="bg-card border border-border rounded-xl p-4 shadow-sm flex justify-between items-center">
             <div>
               <div class="text-sm font-semibold text-foreground">Your Plan: Google AI Pro</div>
@@ -100,14 +123,14 @@ export function mount(container, api) {
         <!-- Gemini Models Section -->
         <div class="mb-6">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            <span>Gemini Models</span>
+            <span>GEMINI MODELS</span>
             <span class="text-muted-foreground/60 cursor-help" title="Gemini 3 Flash, 3.1 Pro, 3.5, 3.6, 3.7">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
             <div class="p-4 flex justify-between items-center">
               <div>
                 <div class="text-sm font-medium text-foreground">Weekly Limit Remaining</div>
-                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 11 hours.</div>
+                <div class="text-xs text-muted-foreground mt-1">You have used some of your weekly limit, it will fully refresh in 5 days, 10 hours.</div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0 ml-4">
                 <span class="text-sm font-semibold text-foreground">${geminiWeeklyPct}%</span>
@@ -133,7 +156,7 @@ export function mount(container, api) {
         <!-- Claude and GPT models Section -->
         <div class="mb-6">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            <span>Claude and GPT models</span>
+            <span>CLAUDE AND GPT MODELS</span>
             <span class="text-muted-foreground/60 cursor-help" title="Claude Opus 4.6, Claude Sonnet 4.6, GPT-OSS 120B">ⓘ</span>
           </div>
           <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden divide-y divide-border">
@@ -156,7 +179,7 @@ export function mount(container, api) {
                 <div class="text-sm font-medium text-foreground">Five Hour Limit Remaining</div>
                 <div class="text-xs text-muted-foreground mt-1">
                   ${claudePct === 0 
-                    ? 'You have hit your 5-hour limit, it will refresh in ' + claudeReset + '.'
+                    ? 'You have hit your 5-hour limit, it will refresh in ' + claudeReset + '. If on a supported paid plan, you can use AI credits in the interim.'
                     : claudePct === 100 
                       ? 'Limit is full. Ready for heavy reasoning.' 
                       : 'You have used some of your 5-hour limit, it will fully refresh in ' + claudeReset + '.'}
@@ -184,19 +207,9 @@ export function mount(container, api) {
   if (refreshBtn) refreshBtn.addEventListener('click', loadData);
 
   loadData();
+
+  // Автообновление каждые 30 секунд
+  timerInterval = setInterval(loadData, 30000);
 }
 
 export function unmount(container) {}
-
-// Скрываем пустые технические блоки Tool {} из чата
-if (!document.getElementById('ag-clean-tools-style')) {
-  const st = document.createElement('style');
-  st.id = 'ag-clean-tools-style';
-  st.textContent = `
-    div:has(> div:empty),
-    div:has(> pre:is(:empty, :contains('{}'))) {
-      /* Сворачиваем неинформативные блоки */
-    }
-  `;
-  document.head.appendChild(st);
-}

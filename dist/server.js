@@ -18,16 +18,18 @@ const server = http.createServer((req, res) => {
           if (match) account = match[1];
         }
         if (line.includes('%')) {
-          const parts = line.split('│').map(s => s.trim()).filter(Boolean);
+          const parts = line.split(/[│|]/).map(s => s.trim()).filter(Boolean);
           if (parts.length >= 3) {
+            const name = parts[0].replace(/^[^\w\s]+/, '').trim();
             const rawPct = parts[1];
             const numMatch = rawPct.match(/\d+/);
             const pct = numMatch ? parseInt(numMatch[0], 10) : 0;
+            const resetRaw = parts[2].trim();
             models.push({
-              name: parts[0],
+              name,
               remaining: rawPct,
-              pct: pct,
-              resetsIn: parts[2]
+              pct,
+              resetsIn: resetRaw
             });
           }
         }
